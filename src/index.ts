@@ -3,6 +3,7 @@ import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { program } from 'commander';
 import { createTxsendSUITo, fromBech32File, generatePairAndSave, myParseInt, parseBalance, sleep } from "./utils";
 import { getFaucetHost, requestSuiFromFaucetV1 } from '@mysten/sui/faucet';
+import { deposit_and_stake_entry } from './stocked';
 
 (async () => {
     program
@@ -64,6 +65,8 @@ async function transfer({ count, value, address, network }: { count: number, val
         const tx = createTxsendSUITo(pair.toSuiAddress(), value * Number(MIST_PER_SUI));
 
         await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: tx });
+
+        await deposit_and_stake_entry(suiClient, pair, value);
     }
 
     await sleep(3000);

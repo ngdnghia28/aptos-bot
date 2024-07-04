@@ -11,6 +11,7 @@
   "description": "",
   "dependencies": {
     "@mysten/sui": "^1.2.1",
+    "@mysten/sui.js": "^0.0.0-experimental-20240524224044",
     "commander": "^12.1.0"
   },
   "devDependencies": {

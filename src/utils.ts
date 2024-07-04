@@ -1,11 +1,10 @@
-import fs from "fs";
-import { InvalidArgumentError } from "commander";
 import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
+import { CoinBalance } from "@mysten/sui/dist/cjs/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from '@mysten/sui/transactions';
-import { getFaucetHost, requestSuiFromFaucetV0 } from '@mysten/sui/faucet';
 import { MIST_PER_SUI } from '@mysten/sui/utils';
-import { CoinBalance } from "@mysten/sui/dist/cjs/client";
+import { InvalidArgumentError } from "commander";
+import fs from "fs";
 
 export function myParseInt(value: string) {
     const parsedValue = parseInt(value, 10);
