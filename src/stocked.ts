@@ -5,8 +5,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519';
 
 export async function deposit_and_stake_entry(client: SuiClient, signer: Ed25519Keypair, value: number) {
     const txb = new Transaction();
-    // need to minus gas. for now fixed 0.1
-    const [coin] = txb.splitCoins(txb.gas, [(value - 0.1) * Number(MIST_PER_SUI)]);
+    const [coin] = txb.splitCoins(txb.gas, [value]);
 
     // TODO remove hardcode
     txb.moveCall({

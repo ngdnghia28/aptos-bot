@@ -7,9 +7,9 @@ import { deposit_and_stake_entry } from './stocked';
 
 (async () => {
     program
-        .command("transfer")
+        .command("depositAndStake")
         .description("transfer to address")
-        .action(transfer)
+        .action(depositAndStake)
         .requiredOption('-a, --address <string>', 'Source account to send SUI')
         .requiredOption('-n, --count <number>', 'Number of accounts to send', myParseInt)
         .requiredOption('-v, --value <number>', 'Value to sent to each account in SUI', myParseInt)
@@ -50,7 +50,7 @@ async function faucet(address: string, { network }: { network: "mainnet" | "test
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
 }
 
-async function transfer({ count, value, address, network }: { count: number, value: number, address: string, network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
+async function depositAndStake({ count, value, address, network }: { count: number, value: number, address: string, network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
     const keypair = fromBech32File(`./keys/${address}.key`);
 
     console.log('Start sending from address: ', keypair.toSuiAddress())
@@ -66,7 +66,9 @@ async function transfer({ count, value, address, network }: { count: number, val
 
         await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: tx });
 
-        await deposit_and_stake_entry(suiClient, pair, value);
+        console.log(`Deposite and stake ${value} SUI for address ${pair.toSuiAddress()} `)
+        // need to minus gas. for now fixed 0.1
+        await deposit_and_stake_entry(suiClient, pair, (value - 0.1) * Number(MIST_PER_SUI));
     }
 
     await sleep(3000);
