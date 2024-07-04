@@ -19,6 +19,9 @@ import { deposit_and_stake_entry } from './stocked';
         .argument('<string>', 'address to query balance')
         .option('-N, --network <string>', 'Network to work with', 'devnet')
         .action(balance);
+    program.command('create')
+    .description("create a key pair")
+    .action(createPair);
     program.command('faucet')
         .description("faucet")
         .argument('<string>', 'address to faucet')
@@ -27,6 +30,11 @@ import { deposit_and_stake_entry } from './stocked';
 
     program.parse(process.argv)
 })()
+
+async function createPair() {
+    const keypair = generatePairAndSave('keys');
+    console.log(`create pair success: ${keypair.toSuiAddress()}`)
+}
 
 async function balance(address: string, { network }: { network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
     console.log(`Get balance for ${address}`);
