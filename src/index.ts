@@ -26,6 +26,7 @@ import { deposit_and_stake_entry } from './stocked';
         .description("faucet")
         .argument('<string>', 'address to faucet')
         .option('-N, --network <string>', 'Network to work with', 'devnet')
+        .option('-n, --count <number>', 'Number of times', myParseInt)
         .action(faucet)
 
     program.parse(process.argv)
@@ -43,7 +44,7 @@ async function balance(address: string, { network }: { network: "mainnet" | "tes
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
 }
 
-async function faucet(address: string, { network }: { network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
+async function faucet(address: string, { network, count = 1 }: { network: "mainnet" | "testnet" | "devnet" | "localnet", count: number }) {
     console.log(`Faucet for ${address}`);
 
     const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
@@ -52,7 +53,14 @@ async function faucet(address: string, { network }: { network: "mainnet" | "test
     }
 
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
-    await requestSuiFromFaucetV1({ host: getFaucetHost(network), recipient: address, });
+    
+    for (let i = 0; i < count; i++) {
+        console.log(`Process ${i}/${count} times`);
+        await sleep(1000);
+        // ignore error
+        await requestSuiFromFaucetV1({ host: getFaucetHost(network), recipient: address, }).catch(console.error);
+    }
+
 
     await sleep(10000);
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
