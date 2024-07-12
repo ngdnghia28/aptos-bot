@@ -14,14 +14,22 @@ import { deposit_and_stake_entry } from './stocked';
         .requiredOption('-n, --count <number>', 'Number of accounts to send', myParseInt)
         .requiredOption('-v, --value <number>', 'Value to sent to each account in SUI', myParseInt)
         .option('-N, --network <string>', 'Network to work with', 'devnet');
+    program
+        .command("autoDepositAndStake")
+        .description("transfer to address")
+        .action(autoDepositAndStake)
+        .requiredOption('-a, --address <string>', 'Source account to send SUI')
+        .requiredOption('-n, --count <number>', 'Number of accounts to send', myParseInt)
+        .requiredOption('-v, --value <number>', 'Value to sent to each account in SUI', myParseInt)
+        .option('-N, --network <string>', 'Network to work with', 'devnet');
     program.command('balance')
         .description("get balance")
         .argument('<string>', 'address to query balance')
         .option('-N, --network <string>', 'Network to work with', 'devnet')
         .action(balance);
     program.command('create')
-    .description("create a key pair")
-    .action(createPair);
+        .description("create a key pair")
+        .action(createPair);
     program.command('faucet')
         .description("faucet")
         .argument('<string>', 'address to faucet')
@@ -53,7 +61,7 @@ async function faucet(address: string, { network, count = 1 }: { network: "mainn
     }
 
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
-    
+
     for (let i = 0; i < count; i++) {
         console.log(`Process ${i}/${count} times`);
         await sleep(1000);
@@ -90,4 +98,25 @@ async function depositAndStake({ count, value, address, network }: { count: numb
     await sleep(3000);
 
     console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
+}
+
+async function autoDepositAndStake({ count, value, address, network }: { count: number, value: number, address: string, network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
+    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
+    let remain = count;
+    while (remain > 0) {
+        console.log('=================> auto faucet');
+        await faucet(address, { network, count: 100 });
+        const balance = parseBalance(await suiClient.getBalance({ owner: address }));
+        console.log(`=================> current balance: ${balance}`);
+        const run = Math.floor(balance / value);
+        if (remain <= run) {
+            console.log(`=================> will deposit ${remain} times. And exit.`);
+            await depositAndStake({ count: remain, value, address, network });
+            remain = 0;
+        } else {
+            console.log(`=================> will deposit ${run} times. Remain deposite ${remain - run}`);
+            await depositAndStake({ count: run, value, address, network });
+            remain -= run;
+        }
+    }
 }
