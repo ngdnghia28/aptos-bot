@@ -1,10 +1,10 @@
-import { decodeSuiPrivateKey } from "@mysten/sui/cryptography";
-import { CoinBalance } from "@mysten/sui/dist/cjs/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
-import { Transaction } from '@mysten/sui/transactions';
-import { MIST_PER_SUI } from '@mysten/sui/utils';
 import { InvalidArgumentError } from "commander";
 import fs from "fs";
+import { Account, Ed25519PrivateKey, Aptos, Network, AccountAddress } from '@aptos-labs/ts-sdk'
+import {
+    AptosFaucetClient,
+    FundRequest,
+} from "@aptos-labs/aptos-faucet-client";
 
 export function myParseInt(value: string) {
     const parsedValue = parseInt(value, 10);
@@ -14,37 +14,82 @@ export function myParseInt(value: string) {
     return parsedValue;
 }
 
+export function myParseFloat(value: string) {
+    const parsedValue = parseFloat(value);
+    if (isNaN(parsedValue)) {
+        throw new InvalidArgumentError('Not a number.');
+    }
+    return parsedValue;
+}
+
+export function myParseBoolean(value: string) {
+    if (value === undefined) return false;
+
+    if (['1', 'true'].indexOf(value) === -1) {
+        throw new InvalidArgumentError('Not a number.');
+    }
+
+    return true;
+}
+
 export function fromBech32File(path: string) {
     const privateStr = fs.readFileSync(path).toString();
-    const { secretKey } = decodeSuiPrivateKey(privateStr);
-    return Ed25519Keypair.fromSecretKey(secretKey);
+
+    return Account.fromPrivateKey({ privateKey: new Ed25519PrivateKey(privateStr) });
 }
 
 export function generatePairAndSave(folder: string) {
-    const keypair = new Ed25519Keypair();
+    const account = Account.generate();
 
-    const privateKey = keypair.getSecretKey();
-    const publicKey = keypair.getPublicKey();
+    const address = account.accountAddress.bcsToHex();
 
-    const address = publicKey.toSuiAddress();
+    fs.writeFileSync(`./${folder}/${address}.key`, account.privateKey.toString());
 
-    fs.writeFileSync(`./${folder}/${address}.key`, privateKey);
-    fs.writeFileSync(`./${folder}/${address}.pub`, publicKey.toSuiPublicKey());
-
-    return keypair;
+    return account;
 }
 
-export function createTxsendSUITo(address: string, value: number) {
-    const tx = new Transaction();
+export async function createTxsendAptosTo(client: Aptos, sender: AccountAddress, receiver: AccountAddress, value: number) {
+    const transaction = await client.transaction.build.simple({
+        sender: sender,
+        data: {
+            function: "0x1::aptos_account::transfer",
+            functionArguments: [receiver, value],
+        },
+    });
 
-    const [coin] = tx.splitCoins(tx.gas, [value]);
-    tx.transferObjects([coin], address);
-
-    return tx;
+    return transaction;
 }
-
-export function parseBalance(balance: CoinBalance){
-	return Number.parseInt(balance.totalBalance) / Number(MIST_PER_SUI);
-};
 
 export const sleep = (delay: number) => new Promise((resolve) => setTimeout(resolve, delay))
+
+export async function getBalance(client: Aptos, accountAddress: string) {
+    // Fetch account resources
+    const resources = await client.getAccountResources({ accountAddress }).catch(() => []);
+
+    // Find the coin resource
+    const accountResource = resources.find((r) => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
+
+    // Extract balance
+    if (accountResource) {
+        const balance = (accountResource.data as any).coin.value;
+        return balance;
+    } else {
+        return 0;
+    }
+}
+
+export async function callFaucet(address: string, value: number, faucetUrl?: string): Promise<string[]> {
+    const faucetClient = new AptosFaucetClient({
+        BASE: faucetUrl || "https://faucet.testnet.aptoslabs.com",
+    });
+    const request: FundRequest = {
+        amount: value,
+        address,
+    };
+    const response = await faucetClient.fund.fund({ requestBody: request });
+    return response.txn_hashes;
+}
+
+export function parseBalance(balance: number) {
+    return balance / 10 ** 8;
+}

@@ -12,20 +12,15 @@ ts-node src/index.ts create
 
 ## Get balance
 ```
-ts-node src/index.ts balance 0xebe83716d56a8bc355ffb68f4f491a7dc5a8d9161cb23bab8da4790bcd0566c4 -N testnet
+ts-node src/index.ts balance 0x8f49c59d92d1b1766be1585d847f324a3b3255013d5bcbd5776204b7ac103361 -N testnet
 ```
 
 ## Faucet
 ```
-ts-node src/index.ts faucet 0xb365f1a552a13e3e98fd1745f032130b7d30b47a7ae7e49b9ab6922ae37e8130 -N testnet -n 10000
+ts-node src/index.ts faucet 0xf2f317b0f21085d53e9348fb03a256d599e42901d5956257a32a9b49e0728d53 -N testnet -n 1
 ```
 
-## Deposite and stake SUI
-``` 
-ts-node src/index.ts depositAndStake -n 2 -v 3 -a 0xb365f1a552a13e3e98fd1745f032130b7d30b47a7ae7e49b9ab6922ae37e8130 -N testnet
+## Transfer
 ```
-
-## Auto deposite and stake SUI
-``` 
-ts-node src/index.ts autoDepositAndStake -n 10 -v 3 -a 0xb365f1a552a13e3e98fd1745f032130b7d30b47a7ae7e49b9ab6922ae37e8130 -N testnet
+ts-node src/index.ts transfer 0xf2f317b0f21085d53e9348fb03a256d599e42901d5956257a32a9b49e0728d53 -d 0x8f49c59d92d1b1766be1585d847f324a3b3255013d5bcbd5776204b7ac103361 -N testnet -v 0.01
 ```

@@ -10,8 +10,8 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@mysten/sui": "^1.2.1",
-    "@mysten/sui.js": "^0.0.0-experimental-20240524224044",
+    "@aptos-labs/aptos-faucet-client": "^0.2.0",
+    "@aptos-labs/ts-sdk": "^1.26.0",
     "commander": "^12.1.0"
   },
   "devDependencies": {

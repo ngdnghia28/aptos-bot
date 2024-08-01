@@ -1,27 +1,8 @@
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
-import { MIST_PER_SUI } from '@mysten/sui/utils';
+import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { program } from 'commander';
-import { createTxsendSUITo, fromBech32File, generatePairAndSave, myParseInt, parseBalance, sleep } from "./utils";
-import { getFaucetHost, requestSuiFromFaucetV1 } from '@mysten/sui/faucet';
-import { deposit_and_stake_entry } from './stocked';
+import { callFaucet, createTxsendAptosTo, fromBech32File, generatePairAndSave, getBalance, myParseFloat, myParseInt, parseBalance, sleep } from "./utils";
 
 (async () => {
-    program
-        .command("depositAndStake")
-        .description("transfer to address")
-        .action(depositAndStake)
-        .requiredOption('-a, --address <string>', 'Source account to send SUI')
-        .requiredOption('-n, --count <number>', 'Number of accounts to send', myParseInt)
-        .requiredOption('-v, --value <number>', 'Value to sent to each account in SUI', myParseInt)
-        .option('-N, --network <string>', 'Network to work with', 'devnet');
-    program
-        .command("autoDepositAndStake")
-        .description("transfer to address")
-        .action(autoDepositAndStake)
-        .requiredOption('-a, --address <string>', 'Source account to send SUI')
-        .requiredOption('-n, --count <number>', 'Number of accounts to send', myParseInt)
-        .requiredOption('-v, --value <number>', 'Value to sent to each account in SUI', myParseInt)
-        .option('-N, --network <string>', 'Network to work with', 'devnet');
     program.command('balance')
         .description("get balance")
         .argument('<string>', 'address to query balance')
@@ -36,87 +17,79 @@ import { deposit_and_stake_entry } from './stocked';
         .option('-N, --network <string>', 'Network to work with', 'devnet')
         .option('-n, --count <number>', 'Number of times', myParseInt)
         .action(faucet)
+    program
+        .command("transfer")
+        .description("transfer to address")
+        .action(transfer)
+        .argument('<string>', 'address to faucet')
+        .requiredOption('-d, --destination <string>', 'Destination account to receive Aptos')
+        .requiredOption('-v, --value <number>', 'Value to sent to each account in Aptos', myParseFloat)
+        .option('-N, --network <string>', 'Network to work with', 'devnet');
 
     program.parse(process.argv)
 })()
 
 async function createPair() {
-    const keypair = generatePairAndSave('keys');
-    console.log(`create pair success: ${keypair.toSuiAddress()}`)
+    const account = generatePairAndSave('keys');
+    console.log(`create pair success: ${account.accountAddress.bcsToHex()}`)
 }
 
-async function balance(address: string, { network }: { network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
+async function balance(address: string, { network }: { network: Network }) {
     console.log(`Get balance for ${address}`);
 
-    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
-    console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
+    const config = new AptosConfig({ network });
+    const client = new Aptos(config);
+
+    console.log(`Current balance: ${parseBalance(await getBalance(client, address))}`)
 }
 
-async function faucet(address: string, { network, count = 1 }: { network: "mainnet" | "testnet" | "devnet" | "localnet", count: number }) {
+async function faucet(address: string, { network, count = 1 }: { network: Network, count: number }) {
     console.log(`Faucet for ${address}`);
 
-    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
+    const config = new AptosConfig({ network });
+    const client = new Aptos(config);
+
     if (network === 'mainnet') {
         throw new Error('Cannot faucet from mainnet')
     }
 
-    console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
+    console.log(`Current balance: ${parseBalance(await getBalance(client, address))}`)
 
     for (let i = 0; i < count; i++) {
         console.log(`Process ${i}/${count} times`);
         await sleep(1000);
         // ignore error
-        await requestSuiFromFaucetV1({ host: getFaucetHost(network), recipient: address, }).catch(console.error);
+        await callFaucet(address, 100_000_000).catch(console.error);
     }
 
 
     await sleep(10000);
-    console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
+    console.log(`Current balance: ${parseBalance(await getBalance(client, address))}`)
 }
 
-async function depositAndStake({ count, value, address, network }: { count: number, value: number, address: string, network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
-    const keypair = fromBech32File(`./keys/${address}.key`);
+async function transfer(address: string, { value, destination, network }: { value: number, destination: string, network: Network }) {
+    const source = fromBech32File(`./keys/${address}.key`);
+    const des = fromBech32File(`./keys/${destination}.key`);
+    console.log('Start sending from address: ', source.accountAddress.toString())
 
-    console.log('Start sending from address: ', keypair.toSuiAddress())
+    const config = new AptosConfig({ network });
+    const client = new Aptos(config);
 
-    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
+    console.log(`Current balance: ${parseBalance(await getBalance(client, source.accountAddress.toString()))}`)
 
-    console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
+    console.log(`Sending ${value} Aptos for address ${des.accountAddress.toString()} `)
+    const transaction = await createTxsendAptosTo(client, source.accountAddress, des.accountAddress, value * 10**8);
 
-    for (let i = 0; i < count; i++) {
-        const pair = generatePairAndSave('temp');
-        console.log(`Sending ${value} SUI for address ${pair.toSuiAddress()} `)
-        const tx = createTxsendSUITo(pair.toSuiAddress(), value * Number(MIST_PER_SUI));
+    const senderAuthenticator = client.transaction.sign({
+        signer: source,
+        transaction,
+    });
 
-        await suiClient.signAndExecuteTransaction({ signer: keypair, transaction: tx });
-
-        console.log(`Deposite and stake ${value} SUI for address ${pair.toSuiAddress()} `)
-        // need to minus gas. for now fixed 0.1
-        await deposit_and_stake_entry(suiClient, pair, (value - 0.1) * Number(MIST_PER_SUI));
-    }
+    await client.transaction.submit.simple({
+        senderAuthenticator,
+        transaction
+    });
 
     await sleep(3000);
-
-    console.log(`Current balance: ${parseBalance(await suiClient.getBalance({ owner: address }))}`)
-}
-
-async function autoDepositAndStake({ count, value, address, network }: { count: number, value: number, address: string, network: "mainnet" | "testnet" | "devnet" | "localnet" }) {
-    const suiClient = new SuiClient({ url: getFullnodeUrl(network) });
-    let remain = count;
-    while (remain > 0) {
-        console.log('=================> auto faucet');
-        await faucet(address, { network, count: 100 });
-        const balance = parseBalance(await suiClient.getBalance({ owner: address }));
-        console.log(`=================> current balance: ${balance}`);
-        const run = Math.floor(balance / value);
-        if (remain <= run) {
-            console.log(`=================> will deposit ${remain} times. And exit.`);
-            await depositAndStake({ count: remain, value, address, network });
-            remain = 0;
-        } else {
-            console.log(`=================> will deposit ${run} times. Remain deposite ${remain - run}`);
-            await depositAndStake({ count: run, value, address, network });
-            remain -= run;
-        }
-    }
+    console.log(`Current balance: ${parseBalance(await getBalance(client, source.accountAddress.toString()))}`)
 }
