@@ -1,4 +1,4 @@
-import { Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
+import { AccountAddress, Aptos, AptosConfig, Network } from '@aptos-labs/ts-sdk';
 import { program } from 'commander';
 import { callFaucet, createTxsendAptosTo, fromBech32File, generatePairAndSave, getBalance, myParseBoolean, myParseFloat, myParseInt, parseBalance, sleep } from "./utils";
 import { gamePlay } from './game';
@@ -71,9 +71,9 @@ async function faucet(address: string, { network, count = 1, movement }: { netwo
         await sleep(1000);
         // ignore error
         if (movement) {
-            await callFaucet(address, 100_000_000, "https://faucet.testnet.suzuka.movementlabs.xyz").catch(console.error);
+            await callFaucet(address, 1_000_000_000, "https://faucet.testnet.suzuka.movementlabs.xyz").catch(console.error);
         } else {
-            await callFaucet(address, 100_000_000).catch(console.error);
+            await callFaucet(address, 1_000_000_000).catch(console.error);
         }
     }
 
@@ -84,7 +84,6 @@ async function faucet(address: string, { network, count = 1, movement }: { netwo
 
 async function transfer(address: string, { value, destination, network }: { value: number, destination: string, network: Network }) {
     const source = fromBech32File(`./keys/${address}.key`);
-    const des = fromBech32File(`./keys/${destination}.key`);
     console.log('Start sending from address: ', source.accountAddress.toString())
 
     const config = new AptosConfig({ network });
@@ -92,8 +91,8 @@ async function transfer(address: string, { value, destination, network }: { valu
 
     console.log(`Current balance: ${parseBalance(await getBalance(client, source.accountAddress.toString()))}`)
 
-    console.log(`Sending ${value} Aptos for address ${des.accountAddress.toString()} `)
-    const transaction = await createTxsendAptosTo(client, source.accountAddress, des.accountAddress, value * 10 ** 8);
+    console.log(`Sending ${value} Aptos for address ${destination} `)
+    const transaction = await createTxsendAptosTo(client, source.accountAddress, AccountAddress.fromString(destination), value * 10 ** 8);
 
     const senderAuthenticator = client.transaction.sign({
         signer: source,
